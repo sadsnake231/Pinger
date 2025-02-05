@@ -1,57 +1,80 @@
 package main
 
 import (
- "fmt"
- "log"
- "time"
+    "fmt"
+    "log"
+    "time"
+    "encoding/json"
+    "net/http"
+    "bytes"
 
- "github.com/go-ping/ping"
+    "github.com/go-ping/ping"
 )
 
 type PingStats struct {
- Ip           	string
- Errors         int
- Min         	time.Duration
- Max         	time.Duration
- Avg         	time.Duration
- TotalRTT       time.Duration
+    Ip           	string              `json:"ip"`
+    LastUp          time.Time           `json:"last_up"`
+    Min         	time.Duration       `json:"min"`
+    Max         	time.Duration       `json:"max"`
+    PingTime        time.Time           `json:"time"`
 }
 
 func pingIp(ip string) PingStats {
- stats := PingStats{Ip: ip}
+    stats := PingStats{Ip: ip}
 
- pinger, err := ping.NewPinger(ip)
- if err != nil {
-  log.Fatalf("Ошибка при создании пингера")
- }
+    pinger, err := ping.NewPinger(ip)
+    if err != nil {
+        log.Printf("Ошибка при создании пингера")
+    }
 
- // Пингуем 5 раз, таймаут 5 секунд
- pinger.Count = 5
- pinger.Timeout = 5 * time.Second
+    // Пингуем 5 раз, таймаут 5 секунд
+    pinger.Count = 5
+    pinger.Timeout = 5 * time.Second
 
- err = pinger.Run()
- if err != nil {
-  log.Printf("Ошибка при пинге")
-  stats.Errors++
- }
+    err = pinger.Run()
+    if err != nil {
+        log.Printf("Ошибка при пинге")
+    }
 
- stats.Errors = pinger.Statistics().PacketsSent - pinger.Statistics().PacketsRecv //колво ошибок: отправленные пакеты - полученные
- stats.Min = pinger.Statistics().MinRtt
- stats.Max = pinger.Statistics().MaxRtt
- stats.Avg = pinger.Statistics().AvgRtt
+    if pinger.Statistics().PacketsRecv != 0 {
+        stats.LastUp = time.Now()
+    }
+    stats.Min = pinger.Statistics().MinRtt
+    stats.Max = pinger.Statistics().MaxRtt
+    stats.PingTime = time.Now()
+    return stats
+}
 
- return stats
+func sendPings(stats PingStats) error {
+    json, err := json.Marshal(stats)
+    if err != nil {
+        return err
+    }
+
+    resp, err := http.Post("http://localhost:3000", "application/json", bytes.NewBuffer(json))
+    if err != nil {
+        return err
+    }
+
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return fmt.Errorf("server did not return 201")
+    }
+
+    return nil
 }
 
 func main() {
- ips := []string{"192.168.0.1", "87.240.132.67", "127.0.0.1"}
+    ips := []string{"192.168.0.1", "87.240.132.67", "127.0.0.1"}
 
- for _, ip := range ips {
-  stats := pingIp(ip)
-  fmt.Printf("Результаты пинга для ip" + " " + ip + "\n")
-  fmt.Printf("Ошибок: %d\n", stats.Errors)
-  fmt.Printf("Min: %v\n", stats.Min)
-  fmt.Printf("Max: %v\n", stats.Max)
-  fmt.Printf("Avg: %v\n", stats.Avg)
- }
+    for _, ip := range ips {
+        stats := pingIp(ip)
+        fmt.Printf("Результаты пинга для ip" + " " + ip + "\n")
+        err := sendPings(stats)
+        if err != nil {
+            fmt.Println(err.Error())
+        }
+        
+    }
 }
