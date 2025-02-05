@@ -8,9 +8,8 @@ func main() {
     router.Use(gin.Logger())
 
     router.POST("/", UpdatePings())
-
-    /*router.POST("/pings", API.PostPings())
-        */
+    router.GET("/", GetPings())
 
     router.Run(":3000")
 }
+

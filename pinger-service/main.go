@@ -13,11 +13,13 @@ import (
 
 type PingStats struct {
     Ip           	string              `json:"ip"`
-    LastUp          time.Time           `json:"last_up"`
-    Min         	time.Duration       `json:"min"`
-    Max         	time.Duration       `json:"max"`
-    PingTime        time.Time           `json:"time"`
+    LastUp          string           	`json:"last_up"`
+    Min         	float64      		`json:"min"`
+    Max         	float64       		`json:"max"`
+    PingTime        string           	`json:"time"`
 }
+
+const timeFormat string = "2006-01-02 15:04:05"
 
 func pingIp(ip string) PingStats {
     stats := PingStats{Ip: ip}
@@ -37,11 +39,14 @@ func pingIp(ip string) PingStats {
     }
 
     if pinger.Statistics().PacketsRecv != 0 {
-        stats.LastUp = time.Now()
+        stats.LastUp = time.Now().Format(timeFormat)
+    } else {
+        stats.LastUp = ""
     }
-    stats.Min = pinger.Statistics().MinRtt
-    stats.Max = pinger.Statistics().MaxRtt
-    stats.PingTime = time.Now()
+
+    stats.Min = float64(pinger.Statistics().MinRtt) / float64(time.Millisecond)
+    stats.Max = float64(pinger.Statistics().MaxRtt) / float64(time.Millisecond)
+    stats.PingTime = time.Now().Format(timeFormat)
     return stats
 }
 

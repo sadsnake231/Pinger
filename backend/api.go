@@ -11,10 +11,10 @@ import (
 )
 type PingStats struct {
     Ip           	string              `json:"ip"`
-    LastUp          time.Time           `json:"last_up"`
-    Min         	time.Duration       `json:"min"`
-    Max         	time.Duration       `json:"max"`
-    PingTime        time.Time           `json:"time"`
+    LastUp          string           	`json:"last_up"`
+    Min         	float64      		`json:"min"`
+    Max         	float64       		`json:"max"`
+    PingTime        string           	`json:"time"`
 }
 
 
@@ -34,24 +34,27 @@ func UpdatePings() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{})
 			return
 		}
+		
+		var flag bool
+		if stats.LastUp == "" {
+			flag = false
+		} else {
+			flag = true
+		}
 
 		query := `
 		INSERT INTO results (host, min_time, max_time, last_up, ping_time)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES ($1, $2, $3, CASE WHEN $6 THEN $4 ELSE 'never' END, $5)
 		ON CONFLICT(host)
 		DO UPDATE SET
-			min_time = EXCLUDED.min_time,
-			max_time = EXCLUDED.max_time,
-			last_up = EXCLUDED.last_up,
-			ping_time = EXCLUDED.ping_time;
+			min_time = $2,
+			max_time = $3,
+			last_up = CASE WHEN $6 THEN $4 ELSE results.last_up END,
+			ping_time = $5;
 		`
 
-		minConverted := float64(stats.Min) / float64(time.Millisecond) 
-		maxConverted := float64(stats.Max) / float64(time.Millisecond) 
-		lastUpConverted := stats.LastUp.Format(timeFormat)
-		pingTimeConverted := stats.PingTime.Format(timeFormat)
 
-		_, err := conn.Exec(ctx, query, stats.Ip, minConverted, maxConverted, lastUpConverted, pingTimeConverted)
+		_, err := conn.Exec(ctx, query, stats.Ip, stats.Min, stats.Max, stats.LastUp, stats.PingTime, flag)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{})
 			fmt.Printf(err.Error())
@@ -62,8 +65,36 @@ func UpdatePings() gin.HandlerFunc {
 	}
 }
 
-func PostPings() gin.HandlerFunc {
+func GetPings() gin.HandlerFunc {
 	return func (c *gin.Context) {
 		
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
+		defer cancel()
+		
+		var statsArr []PingStats
+		
+		query := `SELECT host, min_time, max_time, last_up, ping_time FROM results`
+
+		rows, err := conn.Query(ctx, query)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error:": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var stats PingStats
+			err := rows.Scan(&stats.Ip, &stats.Min, &stats.Max, &stats.LastUp, &stats.PingTime)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
+			
+			statsArr = append(statsArr, stats)
+			
+		}
+
+		c.JSON(http.StatusOK, statsArr)
+		
+
 	}
 }
