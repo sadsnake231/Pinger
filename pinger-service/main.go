@@ -77,7 +77,7 @@ func main() {
     defer ticker.Stop()
 
     for range ticker.C {
-        fmt.Printf("Пингую.../nы")
+        fmt.Printf("Пингую...\n")
         for _, ip := range ips {
             stats := pingIp(ip)
             err := sendPings(stats)
