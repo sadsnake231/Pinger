@@ -56,7 +56,7 @@ func sendPings(stats PingStats) error {
         return err
     }
 
-    resp, err := http.Post("http://localhost:3000", "application/json", bytes.NewBuffer(json))
+    resp, err := http.Post("http://localhost:5000", "application/json", bytes.NewBuffer(json))
     if err != nil {
         return err
     }
@@ -73,13 +73,18 @@ func sendPings(stats PingStats) error {
 func main() {
     ips := []string{"192.168.0.1", "87.240.132.67", "127.0.0.1"}
 
-    for _, ip := range ips {
-        stats := pingIp(ip)
-        fmt.Printf("Результаты пинга для ip" + " " + ip + "\n")
-        err := sendPings(stats)
-        if err != nil {
-            fmt.Println(err.Error())
-        }
+    ticker := time.NewTicker(90 * time.Second)
+    defer ticker.Stop()
+
+    for range ticker.C {
+        fmt.Printf("Пингую.../nы")
+        for _, ip := range ips {
+            stats := pingIp(ip)
+            err := sendPings(stats)
+            if err != nil {
+                fmt.Println(err.Error())
+            }
         
+        }
     }
 }
