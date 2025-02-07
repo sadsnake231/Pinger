@@ -3,7 +3,6 @@ package main
 import (
 	"time"
 	"net/http"
-	"fmt"
 	"context"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,43 +24,21 @@ const timeFormat string = "2006-01-02 15:04:05"
 
 func UpdatePings() gin.HandlerFunc {
 	return func (c *gin.Context) {
-		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
-		defer cancel()
 
 		var stats PingStats
 
 		if err := c.ShouldBindJSON(&stats); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		
-		var flag bool
-		if stats.LastUp == "" {
-			flag = false
-		} else {
-			flag = true
-		}
-
-		query := `
-		INSERT INTO results (host, min_time, max_time, last_up, ping_time)
-		VALUES ($1, $2, $3, CASE WHEN $6 THEN $4 ELSE 'never' END, $5)
-		ON CONFLICT(host)
-		DO UPDATE SET
-			min_time = $2,
-			max_time = $3,
-			last_up = CASE WHEN $6 THEN $4 ELSE results.last_up END,
-			ping_time = $5;
-		`
-
-
-		_, err := conn.Exec(ctx, query, stats.Ip, stats.Min, stats.Max, stats.LastUp, stats.PingTime, flag)
+		//пишем в очередь полученную стату
+		err := PublishToQueue(stats)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{})
-			fmt.Printf(err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{"error:":err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{})
+		c.JSON(http.StatusAccepted, gin.H{})
 	}
 }
 

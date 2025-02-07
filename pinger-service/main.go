@@ -50,6 +50,7 @@ func pingIp(ip string) PingStats {
     return stats
 }
 
+//функция отправки напрямую на сервер
 func sendPings(stats PingStats) error {
     json, err := json.Marshal(stats)
     if err != nil {
@@ -64,16 +65,64 @@ func sendPings(stats PingStats) error {
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("server did not return 201")
+        return fmt.Errorf("сервер не вернул 202")
     }
 
     return nil
 }
 
+/* отправка через очередь
+
+func sendToQueue(stats PingStats) error {
+    conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+    if err != nil {
+        return error
+    }
+    defer conn.Close()
+
+    ch, err := conn.Channel()
+    if err != nil {
+        return err
+    }
+    defer ch.Close()
+
+    q, err := ch.QueueDeclare(
+        "ping_stats",
+        false,
+        false,
+        false,
+        false,
+        nil
+    )
+    if err != nil {
+        return err
+    }
+
+    json, err := json.Marshal(stats)
+    if err != nil {
+        return err
+    }
+
+    err = ch.Publish(
+        "",
+        q.Name,
+        false,
+        false,
+        amqp.Publishing{
+            ContentType: "application/json",
+            Body: body.
+        }
+    )
+    if err != nil {
+        return err
+    }
+    return nil
+}
+*/
 func main() {
     ips := []string{"192.168.0.1", "87.240.132.67", "127.0.0.1"}
 
-    ticker := time.NewTicker(90 * time.Second)
+    ticker := time.NewTicker(10 * time.Second)
     defer ticker.Stop()
 
     for range ticker.C {

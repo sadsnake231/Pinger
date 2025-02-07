@@ -1,0 +1,2 @@
+запуск тестовых серверов
+docker run -d --name test_server1 --network none test_server1

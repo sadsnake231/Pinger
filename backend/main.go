@@ -1,9 +1,31 @@
 package main
 
 import (
+    "log"
+    "sync"
+    
     "github.com/gin-gonic/gin"
 )
+
 func main() {
+    conn = EstablishConnection()
+    defer conn.Close()
+
+    err := SetupRabbitMQ()
+    if err != nil {
+        log.Fatalf(err.Error())
+    }
+    defer CloseRabbitMQ()
+
+    var wg sync.WaitGroup
+    wg.Add(1)
+
+    go func(){
+        defer wg.Done()
+        StartQueueWorker(conn)
+    }()
+
+
     router := gin.New()
     router.Use(gin.Logger())
     router.Use(func(c *gin.Context){
@@ -17,5 +39,7 @@ func main() {
     router.GET("/", GetPings())
 
     router.Run(":5000")
-}
+    
 
+    wg.Wait()
+}

@@ -14,4 +14,3 @@ func EstablishConnection() *pgxpool.Pool {
 
 	return dbpool
 }
-

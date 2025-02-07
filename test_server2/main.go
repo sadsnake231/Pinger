@@ -8,7 +8,7 @@ import (
 func main() {
 	router := gin.New()
 	router.GET("/", func(c *gin.Context) {
-        c.JSON(http.StatusOK, gin.H{"status": "this is server 1"})
+        c.JSON(http.StatusOK, gin.H{"status": "this is server 2"})
     })
-	router.Run(":8081")
+	router.Run(":8082")
 }
