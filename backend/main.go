@@ -3,26 +3,30 @@ package main
 import (
     "log"
     "sync"
+
+    "Pinger/api"
+    "Pinger/queue"
+    "Pinger/database"
     
     "github.com/gin-gonic/gin"
 )
 
 func main() {
-    conn = EstablishConnection()
+    conn := database.EstablishConnection()
     defer conn.Close()
 
-    err := SetupRabbitMQ()
+    err := queue.SetupRabbitMQ()
     if err != nil {
         log.Fatalf(err.Error())
     }
-    defer CloseRabbitMQ()
+    defer queue.CloseRabbitMQ()
 
     var wg sync.WaitGroup
     wg.Add(1)
 
     go func(){
         defer wg.Done()
-        StartQueueWorker(conn)
+        queue.StartQueueWorker(conn)
     }()
 
 
@@ -35,8 +39,12 @@ func main() {
         c.Next()
     })
 
-    router.POST("/", UpdatePings())
-    router.GET("/", GetPings())
+    router.POST("/", api.UpdatePings())
+    router.GET("/", api.AuthMiddleware(), api.GetPings())
+
+    router.POST("/signup", api.SignUp())
+    router.POST("/login", api.Login())
+    router.POST("/logout", api.LogoutUser())
 
     router.Run(":5000")
     

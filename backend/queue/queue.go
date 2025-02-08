@@ -1,8 +1,7 @@
-package main
+package queue
 
 import (
     "encoding/json"
-    "fmt"
     "log"
     "sync"
     "context"
@@ -12,6 +11,14 @@ import (
     "github.com/jackc/pgx/v5/pgxpool"
 
 )
+
+type PingStats struct {
+    Ip           	string              `json:"ip"`
+    LastUp          string           	`json:"last_up"`
+    Min         	float64      		`json:"min"`
+    Max         	float64       		`json:"max"`
+    PingTime        string           	`json:"time"`
+}
 
 
 var (
@@ -29,12 +36,12 @@ func SetupRabbitMQ() error {
     var err error
     rabbitConn, err = amqp091.Dial("amqp://guest:guest@localhost:5672/")
     if err != nil {
-        return fmt.Errorf("ошибка подключения к RabbitMQ: %w", err)
+        return err
     }
 
     rabbitCh, err = rabbitConn.Channel()
     if err != nil {
-        return fmt.Errorf("ошибка создания канала: %w", err)
+        return err
     }
 
     _, err = rabbitCh.QueueDeclare(
@@ -46,7 +53,7 @@ func SetupRabbitMQ() error {
         nil,
     )
     if err != nil {
-        return fmt.Errorf("ошибка создания очереди: %w", err)
+        return err
     }
 
     log.Println("RabbitMQ подключён")
@@ -54,13 +61,13 @@ func SetupRabbitMQ() error {
 }
 
 // Отправляет данные в очередь
-func PublishToQueue(ping PingStats) error {
+func PublishToQueue(stats PingStats) error {
     mu.Lock()
     defer mu.Unlock()
 
-    body, err := json.Marshal(ping)
+    body, err := json.Marshal(stats)
     if err != nil {
-        return fmt.Errorf("ошибка кодирования JSON: %w", err)
+        return err
     }
 
     err = rabbitCh.Publish(
@@ -74,7 +81,7 @@ func PublishToQueue(ping PingStats) error {
         },
     )
     if err != nil {
-        return fmt.Errorf("ошибка публикации сообщения: %w", err)
+        return err
     }
 
     log.Printf("Отправлено в очередь")
@@ -93,21 +100,21 @@ func StartQueueWorker(db *pgxpool.Pool) {
         nil,
     )
     if err != nil {
-        log.Fatalf("Ошибка подписки на очередь: %v", err)
+        log.Fatalf("Ошибка подписки на очередь")
     }
     log.Println("Слушаю очередь...")
 
     for msg := range msgs {
-        var ping PingStats
-        err := json.Unmarshal(msg.Body, &ping)
+        var stats PingStats
+        err := json.Unmarshal(msg.Body, &stats)
         if err != nil {
-            log.Printf("Ошибка декодирования сообщения: %v", err)
+            log.Printf("Ошибка декодирования сообщения")
             continue
         }
 
-        err = SavePingToDB(db, ping)
+        err = SavePingToDB(db, stats)
         if err != nil {
-            log.Printf("Ошибка записи в БД: %v", err)
+            log.Printf("Ошибка записи в БД")
         }
     }
 }
@@ -131,7 +138,7 @@ func SavePingToDB(db *pgxpool.Pool, stats PingStats) error {
 
     _, err := db.Exec(ctx, query, stats.Ip, stats.Min, stats.Max, stats.LastUp, stats.PingTime, flag)
     if err != nil {
-        return fmt.Errorf("ошибка записи в БД: %w", err)
+        return err
     }
 
     log.Printf("Записано в БД")

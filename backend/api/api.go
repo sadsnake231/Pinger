@@ -1,13 +1,21 @@
-package main
+package api
 
 import (
 	"time"
 	"net/http"
 	"context"
 
+	"Pinger/queue"
+	"Pinger/database"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/gin-gonic/gin"
+
 )
+
+var conn *pgxpool.Pool = database.EstablishConnection()
+const timeFormat string = "2006-01-02 15:04:05"
+
 type PingStats struct {
     Ip           	string              `json:"ip"`
     LastUp          string           	`json:"last_up"`
@@ -16,23 +24,17 @@ type PingStats struct {
     PingTime        string           	`json:"time"`
 }
 
-
-var conn *pgxpool.Pool = EstablishConnection()
-const timeFormat string = "2006-01-02 15:04:05"
-
-
-
 func UpdatePings() gin.HandlerFunc {
 	return func (c *gin.Context) {
 
-		var stats PingStats
+		var stats queue.PingStats
 
 		if err := c.ShouldBindJSON(&stats); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		//пишем в очередь полученную стату
-		err := PublishToQueue(stats)
+		err := queue.PublishToQueue(stats)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error:":err.Error()})
 			return

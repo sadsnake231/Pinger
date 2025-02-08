@@ -1,8 +1,9 @@
-package main
+package database
 
 import(
 	"context"
 	"fmt"
+	
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
