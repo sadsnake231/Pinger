@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    networks:
+      - app_network
+
+  backend:
+    build: ./backend
+    container_name: backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/pings
+    ports:
+      - "5000:5000"
+    networks:
+      - app_network
+
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pings
+    volumes:
+     # - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: "rabbitmq:management"
+    container_name: rabbitmq
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine  # <-- используем готовый образ
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend/nginx.conf:/etc/nginx/nginx.conf  # монтируем конфиг
+      - ./frontend/build:/usr/share/nginx/html       # монтируем статику
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app_network
+
+  test-server1:
+    build: ./test_servers/test_server1
+    container_name: test_server1
+    ports:
+      - "8081:8081"
+    networks:
+      - app_network
+
+  test-server2:
+    build: ./test_servers/test_server2
+    container_name: test_server2
+    ports:
+      - "8082:8082"
+    networks:
+      - app_network
+
+  test-server3:
+    build: ./test_servers/test_server3
+    container_name: test_server3
+    ports:
+      - "8083:8083"
+    networks:
+      - app_network
+
+  pinger:
+    build: ./pinger-service
+    container_name: pinger-service
+    depends_on:
+      - test-server1
+      - test-server2
+      - test-server3
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+#volumes:
+  #postgres_data:

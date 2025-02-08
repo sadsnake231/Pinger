@@ -34,7 +34,7 @@ func SetupRabbitMQ() error {
     defer mu.Unlock()
 
     var err error
-    rabbitConn, err = amqp091.Dial("amqp://guest:guest@localhost:5672/")
+    rabbitConn, err = amqp091.Dial("amqp://guest:guest@rabbitmq:5672/")
     if err != nil {
         return err
     }

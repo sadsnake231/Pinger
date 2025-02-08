@@ -59,7 +59,7 @@ func sendPings(stats PingStats) error {
         return err
     }
 
-    resp, err := http.Post("http://localhost:5000", "application/json", bytes.NewBuffer(json))
+    resp, err := http.Post("http://backend:5000", "application/json", bytes.NewBuffer(json))
     if err != nil {
         return err
     }
@@ -123,7 +123,7 @@ func sendToQueue(stats PingStats) error {
 */
 func main() {
     /*
-    file, err := os.Open("ips.txt")
+    file, err := os.Open("ips")
     if err != nil {
         log.Fatalf("не смог открыть файл")
     }
@@ -136,8 +136,7 @@ func main() {
         ips = append(ips, scanner.Text())
     }
     */
-    //в ранней версии я пинговал ip не из docker сети
-    ips := []string{"192.168.0.1", "87.240.132.67", "127.0.0.1"}
+    ips := []string{"test_server1", "test_server2", "test_server3", "87.240.129.133"}
 
     ticker := time.NewTicker(10 * time.Second)
     defer ticker.Stop()
