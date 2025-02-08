@@ -1,29 +1,12 @@
-
-
 import React, { useEffect, useState } from "react";
 import { Table, Button, message } from "antd";
 import axios from "axios";
 
-const PingTable = () => {
+const PingTable = ({ onUnauthorized }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get("http://localhost:5000/");
-      setData(response.data);
-    } catch (error) {
-      message.error("Ошибка при загрузке данных!");
-      console.error("Ошибка запроса:", error);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
+  // Добавляем определение колонок
   const columns = [
     {
       title: "Хост",
@@ -33,7 +16,7 @@ const PingTable = () => {
     {
       title: "Мин. время (мс)",
       dataIndex: "min",
-      key: "min ",
+      key: "min",
       render: (value) => value?.toFixed(2),
     },
     {
@@ -54,12 +37,44 @@ const PingTable = () => {
     },
   ];
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get("http://localhost:5000/", {
+        withCredentials: true
+      });
+      setData(response.data);
+    } catch (error) {
+      if (error.response?.status === 401) {
+        message.error("Требуется авторизация!");
+        onUnauthorized();
+      } else {
+        message.error("Ошибка при загрузке данных!");
+      }
+      console.error("Ошибка запроса:", error);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   return (
     <div style={{ padding: 20 }}>
-      <Button type="primary" onClick={fetchData} loading={loading} style={{ marginBottom: 16 }}>
+      <Button 
+        type="primary" 
+        onClick={fetchData} 
+        loading={loading} 
+        style={{ marginBottom: 16 }}
+      >
         Обновить данные
       </Button>
-      <Table columns={columns} dataSource={data} rowKey="host" />
+      <Table 
+        columns={columns} 
+        dataSource={data} 
+        rowKey="ip" // Лучше использовать ip вместо host, если в данных есть ip
+      />
     </div>
   );
 };

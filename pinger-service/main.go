@@ -6,6 +6,8 @@ import (
     "time"
     "encoding/json"
     "net/http"
+    //"os"
+    //"bufio"
     "bytes"
 
     "github.com/go-ping/ping"
@@ -64,7 +66,7 @@ func sendPings(stats PingStats) error {
 
     defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
+    if resp.StatusCode != http.StatusAccepted {
         return fmt.Errorf("сервер не вернул 202")
     }
 
@@ -120,6 +122,21 @@ func sendToQueue(stats PingStats) error {
 }
 */
 func main() {
+    /*
+    file, err := os.Open("ips.txt")
+    if err != nil {
+        log.Fatalf("не смог открыть файл")
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    var ips []string
+
+    for scanner.Scan() {
+        ips = append(ips, scanner.Text())
+    }
+    */
+    //в ранней версии я пинговал ip не из docker сети
     ips := []string{"192.168.0.1", "87.240.132.67", "127.0.0.1"}
 
     ticker := time.NewTicker(10 * time.Second)
