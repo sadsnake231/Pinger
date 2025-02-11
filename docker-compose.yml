@@ -2,10 +2,12 @@ version: '3.8'
 
 services:
   frontend:
-    build: ./frontend
+    build: ./frontend  # Указываем путь к Dockerfile
     container_name: frontend
     networks:
       - app_network
+    volumes:
+      - ./frontend/build:/app/build
 
   backend:
     build: ./backend
@@ -57,13 +59,13 @@ services:
       retries: 5
 
   nginx:
-    image: nginx:alpine  # <-- используем готовый образ
+    image: nginx:alpine
     container_name: nginx
     ports:
       - "80:80"
     volumes:
-      - ./frontend/nginx.conf:/etc/nginx/nginx.conf  # монтируем конфиг
-      - ./frontend/build:/usr/share/nginx/html       # монтируем статику
+      - ./frontend/nginx.conf:/etc/nginx/nginx.conf  # Монтируем конфиг Nginx
+      - ./frontend/build:/usr/share/nginx/html  # Монтируем собранные файлы React
     depends_on:
       - frontend
       - backend
